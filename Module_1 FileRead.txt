@@ -1,0 +1,16 @@
+string *FileRead() {
+	ifstream getName, getID;
+	getName.open("ReadName.txt");
+	getID.open("ReadID.txt");
+	string* Name = new string[6];
+	int i = 0;                        
+	while (!getID.eof()) {
+		getName >> Name[i];
+		getID >> ::ID[i];
+		cout << ::ID[i] << "," << Name[i] << endl;
+		i++;
+	}
+	getName.close();
+	getID.close();
+	return Name;
+}

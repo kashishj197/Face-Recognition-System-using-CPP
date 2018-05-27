@@ -1,0 +1,21 @@
+//Function to add name if person is not recognised
+void addName() {
+	ofstream appendName, appendID;
+	appendName.open("ReadName.txt", ios::app);
+	appendID.open("ReadID.txt", ios::app);
+	cout << "Enter Your Name : ";
+	string Name;
+	cin >> Name;
+	string* NamePointer = FileRead();
+	int i = 1;
+	while (true) {
+		if (::ID[i] == 0)
+			break;
+		i++;
+	}
+	cout << i + 1;
+	::ID[i + 1] = i + 1;
+	NamePointer[i + 1] = Name;
+	appendID << endl << i + 1;
+	appendName << "\n" << Name;
+}
