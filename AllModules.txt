@@ -1,0 +1,461 @@
+/* This is to verify that the below code is not for distribution. 
+Kashish Jain is the owner of this code */
+// FaceRecognition_Attendance System.cpp : Defines the entry point for the console application.
+//
+
+#include "stdafx.h"
+#include <iostream>
+#include <opencv2/core.hpp>
+#include <opencv2/face.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/objdetect.hpp>
+#include <sstream>
+#include <fstream>
+#include <ostream>
+#include <opencv2/imgcodecs.hpp>
+#include <algorithm>
+#include <stdlib.h>
+
+using namespace std;
+using namespace cv;
+using namespace cv::face;
+
+//Global variable to access ID anywhere throughout the program
+int ID[1000];
+
+//Function to detect faces
+Mat detectFaces(Mat &frame) {
+	//Load Cascades
+	string faceCascadePath, glassCascadePath, eyeCascadePath;
+	CascadeClassifier faceCascade, glassCascade, eyeCascade;
+	faceCascadePath = "Haar/haarcascade_frontalcatface.xml";
+	eyeCascadePath = "Haar/haarcascade_eye.xml";
+	glassCascadePath = "Haar/haarcascade_eye_tree_eyeglasses.xml";
+	if (!faceCascade.load(faceCascadePath)) {
+		try {
+			throw "Unable to Load Face Cascade #detctFaces";
+		}
+		catch (const char* mssg) {
+			cerr << endl << mssg;
+			waitKey(200);
+		}
+	}
+	if (!eyeCascade.load(eyeCascadePath)) {
+		try {
+			throw "Unable to Load Eye Cascade #detctFaces";
+		}
+		catch (const char* mssg) {
+			cerr << endl << mssg;
+			waitKey(200);
+		}
+	}
+	if (!glassCascade.load(glassCascadePath)) {
+		try {
+			throw "Unable to Load Glass Cascade #detctFaces";
+		}
+		catch (const char* mssg) {
+			cerr << endl << mssg;
+			waitKey(200);
+		}
+	}
+	//Vector to store detected faces,eyes and glass coordinates to create rectangle
+	vector <Rect> faces, eyes, glass;
+	//Matrix to Store colored,cropped and grayScale images
+	Mat  gray, gray_face, croppedImage;
+	//initializing
+	gray = frame;
+	//Detecting Faces
+	faceCascade.detectMultiScale(gray, faces, 1.3, 5, CV_HAAR_FIND_BIGGEST_OBJECT | CV_HAAR_SCALE_IMAGE, Size(30, 30));
+	//loop for every face detected
+	for (int i = 0; i < faces.size(); i++) {
+		//initializing coordinates height and width of face
+		int x = faces[i].x;
+		int y = faces[i].y;
+		int height = faces[i].height;
+		int width = faces[i].width;
+		//cropping and isolating the frame captured
+		int tlY = faces[i].y;
+		if (tlY < 0) {
+			tlY = 0;
+		}
+		int drY = faces[i].y + faces[i].height;
+		if (drY > frame.rows)
+		{
+			drY = frame.rows;
+		}
+		Point tl(faces[i].x, tlY);
+		Point dr(faces[i].x + faces[i].width, drY);
+		Rect myROI(tl, dr);
+		//initializing cropped image in rectangle form
+		croppedImage = gray(myROI);
+		//Passing face image for detection of eyes
+		gray_face = croppedImage;
+		//detect eyes
+		eyeCascade.detectMultiScale(gray_face, eyes, 1.3, 5, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
+		//check if normal eyes are detected
+		if (eyes.size() > 0) {
+			for (int k = 0; k < eyes.size(); k++) {
+				//return image
+				return gray_face;
+			}
+		}
+		//else class eyes are detected
+		else {
+			//detect glass eyes
+			glassCascade.detectMultiScale(gray_face, glass, 1.3, 5, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
+			for (int j = 0; j < glass.size(); j++)
+			{
+				//return image
+				return gray_face;
+			}
+		}
+	}
+}
+
+//Function to get names and store all previous existed ID's in global int array ID[]
+string *FileRead() {
+	//open the txt files
+	ifstream getName, getID;
+	getName.open("ReadName.txt");
+	getID.open("ReadID.txt");
+	//create a string pointer to store 100 names 
+	string* Name = new string[100];
+	int i = 1;
+	//loop untill end of file
+	while (!getID.eof()) {
+		//store all name and ID's found in txt files
+		getName >> Name[i];
+		getID >> ::ID[i];
+		i++;
+	}
+	//close the opened files
+	getName.close();
+	getID.close();
+	//return the array containing all names
+	return Name;
+}
+
+//Function to add Name in Txt files
+int addName() {
+	//variables to open txt files
+	ofstream appendName, appendID;
+	//open ReadName.txt containing all names
+	appendName.open("ReadName.txt", ios::app);
+	//open ReadID.txt containing all ID's
+	appendID.open("ReadID.txt", ios::app);
+	//Take input from User
+	cout << "Enter Your Name : ";
+	string Name;
+	cin >> Name;
+	//Get all names from ReadName.txt and Store the ID's in global int array ID
+	string* NamePointer = FileRead();
+	int i = 0;
+	//Loop to get number of ID's
+	while (true) {
+		i++;
+		//Break if space or 0 value found in ID[]
+		if (::ID[i] == 0)
+			break;
+	}
+	//store the last ID
+	::ID[i] = i;
+	//Show the new user ID
+	cout << endl << i ;
+	//store name of user
+	NamePointer[i] = Name;
+	//add the new user ID in ReadID.txt
+	appendID << endl << i ;
+	//add the new user Name in ReadName.txt
+	appendName << "\n" << Name;
+	//close the opened files
+	appendID.close();
+	appendName.close();
+	//return the new ID
+	return i;
+}
+
+//Function to capture images for training
+int captureImage(Mat Img, int i) {
+	//static variable to count number of frames captured without loop
+	static int count = 1;
+	int j = 0;
+	//convert integer ID number to string
+	auto s = to_string(i);
+	int clock = count;
+	//convert integer count to string
+	auto s1 = to_string(clock);
+	//write the captured frame
+	bool isSuccess = imwrite("dataset/User." + s + "." + s1 + ".jpg", Img);
+	//break if cant capture the frame
+	if (!isSuccess) {
+		cerr << "can't able to write";
+		return 0;
+	}
+	//increment after every single frame captured
+	count++;
+	//show ID number that is being registered
+	cout << "\nCapturing image User ID : " << ::ID[i] << endl;
+	//return number of frames captured
+	return count;
+}
+
+//Function to train the LBPH algo with all datasets
+void train() {
+	//Vector of Mat datatype to store images
+	vector <Mat> Image;
+	//Vector of int datatype to store ID lists
+	vector <int> Label;
+	//DataType to read txt files
+	ifstream getID;
+	//Read file containing all ID's
+	getID.open("ReadID.txt");
+	int i = 1;
+	//Loop untill end of file is detected
+	while (!getID.eof()) {
+		//Get ID's one by one
+		getID >> ::ID[i];
+		//show registered ID's
+		cout << "ID :" << ::ID[i] << endl;
+		//Loop for every 20 frames of particular ID 
+		for (int j = 1; j <= 20; j++) {
+			//convert to string s
+			auto s = to_string(j);
+			int clock = ::ID[i];
+			//convert to string s1
+			auto s1 = to_string(clock);
+			//load image 
+			Mat image = imread("dataset/User." + s1 + "." + s + ".jpg");
+			//check if image is not empty
+			if (image.empty())
+				cout << "dataset/User." + s1 + "." + s + ".jpg" << endl;
+			else
+				cout << "img.jpg loaded OK" << endl;
+			//Store and create Image list
+			Image.push_back(imread("dataset/User."+ s1 + "." + s + ".jpg", CV_LOAD_IMAGE_GRAYSCALE));
+			//Store and create ID's list
+			Label.push_back(::ID[i]);
+		}
+		//for moving onto another ID
+		i++;
+	}
+	//create a LBPH algo Face Recognizer
+	Ptr<LBPHFaceRecognizer> model = LBPHFaceRecognizer::create(2, 2, 7, 7, 15);
+	//Train faces and there ID's
+	model->train(Image, Label);
+	//Save the trained results
+	model->save("results/Trained_LBPHrecognizer.xml");
+	//show that the Algo is trained
+	cout << "Algo trained";
+	//Wait to show the message
+	waitKey(300);
+	//return at the end
+	return;
+}
+
+//Function to register faces
+void registerFace() {
+	//Get the new Personnel ID
+	int i = addName();
+	//Get name of the Personnel
+	string* Name = FileRead();
+	//Load face cascades
+	string faceCascadePath = "Haar/haarcascade_frontalcatface.xml";
+	CascadeClassifier faceCascade;
+	if (!faceCascade.load(faceCascadePath)) {
+		cout << "cannot load face cascade";
+	}
+	//on camera
+	VideoCapture cap(0);
+	//Names of windows to display Captured Frame and Video 
+	string myWindow = "Registering-Face";
+	string capturedFrame = "Captured Frames";
+	//Creating Windows
+	namedWindow(myWindow, 1);
+	namedWindow(capturedFrame, 1);
+	//Loop for continous detection
+	while (true) {
+		//Matrix to Store colored and grayScale images
+		Mat frame, gray;
+		//Capturing image
+		cap >> frame;
+		//Converting BGR TO GRAYSCALE
+		cvtColor(frame, gray, CV_BGR2GRAY);
+		//Equalizing Brightness for Better Results
+		equalizeHist(gray, gray);
+		//Vector to create rectangle over faces
+		vector <Rect> faces;
+		//variable to count the number of frames captured
+		int count = 0;
+		//Detect faces
+		faceCascade.detectMultiScale(gray, faces, 1.3, 5, CV_HAAR_FIND_BIGGEST_OBJECT | CV_HAAR_SCALE_IMAGE, Size(30, 30));
+		//Loop for every single face detected
+		for (int k = 0; k < faces.size(); k++) {
+			//calling detectFaces function to crop and isolate the image
+			Mat Img = detectFaces(gray);
+			//If image is returned then store it in frame
+			if (!Img.empty()) {
+				frame = Img;
+			}
+			//else the face detected is cropped and stored
+			else {
+				frame = gray(faces[k]);
+			}
+			//create rectangle over detected face uncomment if want to see
+			//rectangle(gray, Point(faces[k].x, faces[k].y), Point(faces[k].x + faces[k].width, faces[k].y + faces[k].height), Scalar(0, 255, 0), 2, 4);
+			//capture the cropped image in specified directory
+			count = captureImage(frame, i);
+			//Show the Captured Image
+			cv::imshow(capturedFrame, frame);
+		}
+		//If escape key is pressed exit
+		if (waitKey(10) == 27) {
+			cout << "\nExit";
+			destroyAllWindows;
+			break;
+		}
+		//If 20 frames are captured exit
+		if (count > 20) {
+			cout << "\nYou are Registered";
+			waitKey(30);
+			destroyAllWindows;
+			break;
+		}
+		//Show the video
+		cv::imshow(myWindow, gray);
+	}
+	//Train the algo with appended database
+	train();
+}
+
+//Function to predict faces
+void predict() {
+	//Load cascades
+	string faceCascadePath, trainedCascadePath, eyeCascadePath;
+	CascadeClassifier faceCascade, eyeCascade;
+	faceCascadePath = "Haar/haarcascade_frontalcatface.xml";
+	eyeCascadePath = "Haar/haarcascade_eye.xml";
+	trainedCascadePath = "results/Trained_LBPHrecognizer.xml";
+	if (!faceCascade.load(faceCascadePath)) {
+		try {
+			throw "Unable to Load Face Cascade #detctFaces";
+		}
+		catch (const char* mssg) {
+			cerr << endl << mssg;
+			waitKey(200);
+		}
+	}
+	if (!eyeCascade.load(eyeCascadePath)) {
+		try {
+			throw "Unable to Load Eye Cascade #detctFaces";
+		}
+		catch (const char* mssg) {
+			cerr << endl << mssg;
+			waitKey(200);
+		}
+	}
+	/*if(!trainedCascade.load(trainedCascadePath)) {
+		train();
+		cout << "Try again" << endl;
+		waitKey(300);
+		return;
+	}*/
+	//Camera On
+	VideoCapture cap(0);
+	//to detect store faces and eyes and create rectangle
+	vector <Rect> faces, eyes;
+	//create window
+	string myWindow = "Face-Recognition";
+	namedWindow(myWindow, 1);
+	//Loop for continous detection
+	while (true) {
+		//Matrix to Store colored and grayScale images
+		Mat frame, gray, gray_face;
+		//Capturing image
+		cap >> frame;
+		//Converting BGR TO GRAYSCALE
+		cvtColor(frame, gray, CV_BGR2GRAY);
+		//Equalizing Brightness for Better Results
+		equalizeHist(gray, gray);
+		//variable to count the number of frames captured
+		int count = 0;
+		//Detect faces
+		faceCascade.detectMultiScale(gray, faces, 1.3, 5, CV_HAAR_FIND_BIGGEST_OBJECT | CV_HAAR_SCALE_IMAGE, Size(30, 30));
+		//create a LBPH algo Face Recognizer
+		Ptr<LBPHFaceRecognizer> model = Algorithm::load<LBPHFaceRecognizer>(trainedCascadePath);
+		//Loop for every single face detected
+		for (int k = 0; k < faces.size(); k++) {
+			int x = faces[k].x;
+			int y = faces[k].y;
+			int height = faces[k].height;
+			int width = faces[k].width;
+			//cropping the detected face
+			gray_face = gray(faces[k]);
+			//detect eyes in the detected face
+			eyeCascade.detectMultiScale(gray_face, eyes, 1.3, 5, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
+			//Loop for detected eyes
+			for (int j = 0; j < eyes.size(); j++)
+			{
+				//Variables to get ID and Confidence over that ID
+				int ID = 0;
+				double conf = 0.0;
+				//predict the faces
+				model->predict(gray_face,CV_OUT ID,CV_OUT conf);
+				//get list of all names
+				int i = ID;
+				string* NamePointer = FileRead();
+				//loop for displaying predicted ID's and Name
+				while (true) {
+					//Break if ID is detected
+					if (conf < 7) {
+						if (ID > 0) {
+							//convert the ID into string
+							auto s1 = to_string(ID);
+							//Puttext over displaying images including ID and Name of the person recognized
+							putText(frame, "ID :" + s1 + ", Name :" + NamePointer[i], Point(x, y - 40), CV_FONT_HERSHEY_DUPLEX, .8, Scalar(255, 0, 255), 2, 8, false);
+							//checking the output in console uncomment to see
+							cout << ID << "," << NamePointer[i] << endl;
+							//show confidence
+							cout << "confidence : " << conf;
+							break;
+						}
+					}
+					else
+					{
+						putText(frame, "Face Not recognized", Point(x, y - 40), CV_FONT_HERSHEY_DUPLEX, .8, Scalar(255, 0, 255), 2, 8, false);
+						break;
+					}
+				}
+				//creating rectangle over faces for every eyes detected in faces 
+				rectangle(frame, Point(x, y), Point(x + width, y + height), Scalar(0, 255, 0), 2, 4);
+			}
+		}
+		//Echo the image processing
+		cv::imshow(myWindow, frame);
+		//Break When Escape is Pressed OR Exit when Escape is Pressed
+		if (waitKey(10) == 27) {
+			cout << "Exit\n";
+			destroyAllWindows();
+			break;
+		}
+	}
+}
+
+int main() {
+	cout << "ENTER 1 FOR REGISTERATION" << endl << "Enter 2 FOR FACE DETECTION" << endl;
+	cout << "Enter :";
+	int n;
+	cin >> n;
+	switch (n) {
+	case 1:
+		registerFace();
+		break;
+	case 2:
+		predict();
+		break;
+	default:
+		return 0;
+	}
+	return 0;
+}
+

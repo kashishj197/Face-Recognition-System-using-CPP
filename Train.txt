@@ -1,0 +1,291 @@
+// FaceRecognition_Attendance System.cpp : Defines the entry point for the console application.
+//
+
+#include "stdafx.h"
+#include <iostream>
+#include <opencv2/core.hpp>
+#include <opencv2/face.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/objdetect.hpp>
+#include <sstream>
+#include <fstream>
+#include <ostream>
+#include <opencv2/imgcodecs.hpp>
+#include <algorithm>
+#include <stdlib.h>
+
+using namespace std;
+using namespace cv;
+using namespace cv::face;
+
+//Global variable to access ID anywhere
+int ID[100];
+
+/*Mat recg(Mat &Img) {
+
+	if (!glassCascade.load(glassCascadePath)) {
+		try {
+			if ((!glassCascade.load(glassCascadePath)) == true) {
+				throw "Unable to Load Glass Cascade";
+			}
+		}
+		catch (const char* mssg) {
+			cerr << endl << mssg;
+			exit;
+		}
+	}
+	if (!faceCascade.load(faceCascadePath)) {
+		try {
+			if ((!faceCascade.load(faceCascadePath)) == true) {
+				throw "Unable to Load Face Cascade";
+			}
+		}
+		catch (const char* mssg) {
+			cerr << endl << mssg;
+			exit;
+		}
+	}
+	Mat croppedImageGray;
+	vector<Rect> faces,glass;
+	glassCascade.detectMultiScale(Img, glass, 1.3, 5, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
+	for (int i; i < glass.size(); i++) {
+		faceCascade.detectMultiScale(Img, faces, 1.3, 5, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
+		for (int j = 0; j < faces.size(); j++) {
+			croppedImageGray = Img(faces[j]);
+		}
+	}
+	return croppedImageGray;
+}*/
+
+//Function to detect faces
+Mat detectFaces(Mat &frame) {
+	string faceCascadePath, glassCascadePath, eyeCascadePath;
+	CascadeClassifier faceCascade, glassCascade, eyeCascade;
+	faceCascadePath = "Haar/haarcascade_frontalcatface.xml";
+	eyeCascadePath = "Haar/haarcascade_eye.xml";
+	glassCascadePath = "Haar/haarcascade_eye_tree_eyeglasses.xml";
+	//Load Cascades
+	if (!faceCascade.load(faceCascadePath)) {
+		try {
+			throw "Unable to Load Face Cascade #detctFaces";
+		}
+		catch (const char* mssg) {
+			cerr << endl << mssg;
+			waitKey(200);
+		}
+	}
+	if (!eyeCascade.load(eyeCascadePath)) {
+		try {
+			throw "Unable to Load Eye Cascade #detctFaces";
+		}
+		catch (const char* mssg) {
+			cerr << endl << mssg;
+			waitKey(200);
+		}
+	}
+	if (!glassCascade.load(glassCascadePath)) {
+		try {
+			throw "Unable to Load Glass Cascade #detctFaces";
+		}
+		catch (const char* mssg) {
+			cerr << endl << mssg;
+			waitKey(200);
+		}
+	}
+	vector <Rect> faces, eyes, glass;
+		//Matrix to Store colored and grayScale images
+		Mat  gray, gray_face, croppedImage;
+		//Equalizing Hist for Better Results
+		gray = frame;
+		//Detecting Faces
+		faceCascade.detectMultiScale(gray, faces, 1.3, 5, CV_HAAR_FIND_BIGGEST_OBJECT | CV_HAAR_SCALE_IMAGE, Size(30, 30));
+		for (int i = 0; i < faces.size(); i++) {
+			int x = faces[i].x;
+			int y = faces[i].y;
+			int height = faces[i].height;
+			int width = faces[i].width;
+			int tlY = faces[i].y;
+			if (tlY < 0) {
+				tlY = 0;
+			}
+			int drY = faces[i].y + faces[i].height;
+			if (drY > frame.rows)
+			{
+				drY = frame.rows;
+			}
+			Point tl(faces[i].x, tlY);
+			Point dr(faces[i].x + faces[i].width, drY);
+
+			Rect myROI(tl, dr);
+
+			croppedImage = gray(myROI);
+			//Passing face coordinates for detection of eyes
+			gray_face = croppedImage;
+			eyeCascade.detectMultiScale(gray_face, eyes, 1.3, 5, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
+			if (eyes.size() > 0) {
+				for (int k = 0; k < eyes.size(); k++) {
+					return gray_face;
+					rectangle(frame, Point(x, y), Point(x + width, y + height), Scalar(0, 255, 0), 2, 4);
+				}
+			}
+			else {
+			glassCascade.detectMultiScale(gray_face, glass, 1.3, 5, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
+			for (int j = 0; j < glass.size(); j++)
+			{
+				return gray_face;
+				rectangle(frame, Point(x, y), Point(x + width, y + height), Scalar(0, 255, 0), 2, 4);
+			}
+		}
+	}
+}
+
+//Get Names
+string *FileRead() {
+	ifstream getName, getID;
+	getName.open("ReadName.txt");
+	getID.open("ReadID.txt");
+	string* Name = new string[100];
+	int i = 0;
+	while (!getID.eof()) {
+		getName >> Name[i];
+		getID >> ::ID[i];
+		i++;
+	}
+	getName.close();
+	getID.close();
+	return Name;
+}
+
+
+//Function to add Name in Txt files
+int addName() {
+	ofstream appendName, appendID;
+	appendName.open("ReadName.txt", ios::app);
+	appendID.open("ReadID.txt", ios::app);
+	cout << "Enter Your Name : ";
+	string Name;
+	cin >> Name;
+	string* NamePointer = FileRead();
+	int i = 1;
+	while (true) {
+		i++;
+		if (::ID[i] == 0)
+			break;
+	}
+	::ID[i+1] = i+1;
+	cout << i + 1;
+	NamePointer[i + 1] = Name;
+	appendID << endl << i + 1;
+	appendName << "\n" << Name;
+	appendID.close();
+	appendName.close();
+	return i;
+}
+
+void adminLogin() {
+	
+}
+
+//Function to capture images for training
+int captureImage(Mat Img,int i) {
+	static int count = 0;
+	int j=0;
+	auto s = to_string(i);
+	int clock = count;
+	auto s1 = to_string(clock);
+	bool isSuccess = imwrite("dataset/User." + s + "." + s1 + ".jpg", Img);
+	if (!isSuccess) {
+		cerr << "can't able to write";
+			return 0;
+	}
+	count++;
+	cout << "\nCapturing image User ID : " << ::ID[i] << endl;	
+	return count;
+}
+
+void train() {
+
+}
+
+//Function to register faces
+void registerFace() {
+	int i = addName();
+	string* Name = FileRead();
+	string faceCascadePath = "Haar/haarcascade_frontalcatface.xml";
+	CascadeClassifier faceCascade;
+	if (!faceCascade.load(faceCascadePath)) {
+		cout << "cannot load face cascade";
+	}
+	//on camera
+	VideoCapture cap(0);
+	//Loop for continous detection
+	string myWindow = "Registering-Face";
+	string capturedFrame = "Captured Frames";
+	//Creating Window To echo result
+	namedWindow(myWindow, 1);
+	namedWindow(capturedFrame, 1);
+	while (true) {
+		//Matrix to Store colored and grayScale images
+		Mat frame, gray;
+		//Capturing image
+		cap >> frame;
+		//Converting BGR TO GRAYSCALE
+		cvtColor(frame, gray, CV_BGR2GRAY);
+		//Equalizing Hist for Better Results
+		equalizeHist(gray, gray);
+		vector <Rect> faces;
+		int count=0;
+		faceCascade.detectMultiScale(gray, faces, 1.3, 5, CV_HAAR_FIND_BIGGEST_OBJECT | CV_HAAR_SCALE_IMAGE, Size(30, 30));
+		for (int k = 0; k < faces.size(); k++) {
+			Mat Img = detectFaces(gray);
+			//Capture detected frame and write it in specified directory
+			if (!Img.empty()) {
+				frame = Img;
+			}
+			else {
+				frame = gray(faces[k]);
+			}
+			count = captureImage(frame, i);
+			//Show the Captured Image
+			imshow(capturedFrame,frame);
+		}
+	//If escape key is pressed exit
+	if (waitKey(10) == 27) {
+		cout << "\nExit";
+		destroyAllWindows;
+		break;
+	}
+	//If 20 frames are written exit
+	if (count == 20) {
+		cout << "\nYou are Registered";
+		waitKey(30);
+		destroyAllWindows;
+		break;
+	}
+		//Show the video
+		imshow(myWindow, gray);
+	}
+}
+
+int main() {
+	cout << "ENTER 1 FOR LOGIN"<<endl<<"ENTER 2 FOR REGISTERATION"<<endl<<"Enter 3 FOR FACE DETECTION"<<endl;
+	cout << "Enter :";
+	int n;
+	cin >> n;
+	switch (n) {
+	case 1:
+		//loginFace();
+		break;
+	case 2:
+		registerFace();
+		break;
+	case 3:
+		adminLogin();
+		break;
+	default:
+		return 0;
+	}
+	return 0;
+}
+
